@@ -1,7 +1,7 @@
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs").promises;
-const { supabase } = require("../config/supabase");
+const { supabase, supabaseAdmin } = require("../config/supabase");
 
 // Configure Multer storage
 const storage = multer.diskStorage({
@@ -55,7 +55,7 @@ const uploadToSupabase = async (file, bucketName = "photos") => {
     const fileName = `${Date.now()}-${file.originalname}`;
 
     // Upload to Supabase Storage
-    const { data, error } = await supabase.storage
+    const { data, error } = await supabaseAdmin.storage
       .from(bucketName)
       .upload(fileName, fileBuffer, {
         contentType: file.mimetype,

@@ -141,7 +141,7 @@ router.get("/", async (req, res) => {
           id,
           nom,
           email,
-          location as user_location
+          user_location:location
         ),
         project_volunteers (count)
       `,
@@ -220,7 +220,7 @@ router.get("/:id", async (req, res) => {
           nom,
           email,
           numero,
-          location as user_location,
+          user_location:location,
           photo
         ),
         project_volunteers (
@@ -231,7 +231,7 @@ router.get("/:id", async (req, res) => {
             nom,
             email,
             photo,
-            location as user_location
+            user_location:location
           )
         ),
         project_outil_requests (

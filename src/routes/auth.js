@@ -5,7 +5,7 @@ const router = express.Router();
 
 // Validation helper function
 const validateRegistrationData = (data) => {
-  const { email, password, nom, numero, location, availableDays } = data;
+  const { email, password, nom, availableDays } = data;
   const errors = [];
 
   if (!email || !email.includes("@")) {
@@ -16,9 +16,6 @@ const validateRegistrationData = (data) => {
   }
   if (!nom || nom.trim().length < 2) {
     errors.push("Name must be at least 2 characters");
-  }
-  if (!location || location.trim().length < 2) {
-    errors.push("Location is required");
   }
   if (availableDays && !Array.isArray(availableDays)) {
     errors.push("Available days must be an array");
@@ -41,15 +38,22 @@ router.post("/register", async (req, res) => {
       });
     }
 
-    // Create auth user with Supabase
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+    // Create auth user with Supabase using Admin client to bypass email sending constraints
+    // This auto-confirms the user and avoids "Email rate limit exceeded" errors
+    const { data: authData, error: authError } =
+      await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { nom }, // Optional: store name in metadata too
+      });
 
     if (authError) {
       // Handle specific auth errors
-      if (authError.message.includes("already registered")) {
+      if (
+        authError.message.includes("already registered") ||
+        authError.message.includes("already been registered")
+      ) {
         return res.status(409).json({
           message: "Email already registered",
           error: "EMAIL_ALREADY_EXISTS",
@@ -76,7 +80,7 @@ router.post("/register", async (req, res) => {
         email,
         nom: nom.trim(),
         numero: numero ? numero.trim() : null,
-        location: location.trim(),
+        location: location ? location.trim() : null,
         available_days: availableDays || [],
       })
       .select()
@@ -93,6 +97,27 @@ router.post("/register", async (req, res) => {
       });
     }
 
+    // Since admin.createUser doesn't return a session, we need to sign in manually
+    const { data: signInData, error: signInError } =
+      await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+    if (signInError) {
+      // This is unlikely if creation just succeeded, but handle it gracefully
+      console.error("Auto-login error after registration:", signInError);
+      return res.status(201).json({
+        message:
+          "User registered successfully, but auto-login failed. Please log in.",
+        user: {
+          id: userProfile.id,
+          // ... user profile fields
+        },
+        session: null,
+      });
+    }
+
     res.status(201).json({
       message: "User registered successfully",
       user: {
@@ -103,7 +128,7 @@ router.post("/register", async (req, res) => {
         location: userProfile.location,
         available_days: userProfile.available_days,
       },
-      session: authData.session,
+      session: signInData.session,
     });
   } catch (error) {
     console.error("Register error:", error);

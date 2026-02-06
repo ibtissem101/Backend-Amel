@@ -85,7 +85,7 @@ router.post(
           nom,
           email,
           numero,
-          location as user_location
+          user_location:location
         )
       `,
         )
@@ -138,7 +138,7 @@ router.get("/", async (req, res) => {
           nom,
           email,
           numero,
-          location as user_location
+          user_location:location
         )
       `,
       )
@@ -211,8 +211,8 @@ router.get("/:id", async (req, res) => {
           nom,
           email,
           numero,
-          location as user_location,
-          photo as user_photo
+          user_location:location,
+          user_photo:photo
         ),
         transport_offerings (
           id,
@@ -399,7 +399,7 @@ router.patch(
           nom,
           email,
           numero,
-          location as user_location
+          user_location:location
         )
       `,
         )

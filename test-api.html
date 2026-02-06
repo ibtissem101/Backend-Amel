@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>API Endpoint Tester</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      .container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      .test-section {
+        margin: 20px 0;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
+      .test-section h3 {
+        margin-top: 0;
+        color: #333;
+      }
+      button {
+        background: #007bff;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        margin: 5px;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+      button:hover {
+        background: #0056b3;
+      }
+      button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+      .success {
+        color: #28a745;
+        background: #d4edda;
+        padding: 10px;
+        border-radius: 4px;
+        margin: 10px 0;
+      }
+      .error {
+        color: #dc3545;
+        background: #f8d7da;
+        padding: 10px;
+        border-radius: 4px;
+        margin: 10px 0;
+      }
+      .response {
+        background: #f8f9fa;
+        padding: 10px;
+        border-radius: 4px;
+        margin: 10px 0;
+        font-family: monospace;
+        white-space: pre-wrap;
+        max-height: 200px;
+        overflow-y: auto;
+      }
+      input,
+      textarea {
+        width: 100%;
+        padding: 8px;
+        margin: 5px 0;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-sizing: border-box;
+      }
+      .auth-info {
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        padding: 10px;
+        border-radius: 4px;
+        margin: 10px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🚀 Backend Gaza API Tester</h1>
+      <div id="auth-status" class="auth-info">
+        <strong>Status:</strong> Not authenticated
+      </div>
+
+      <!-- Health Check -->
+      <div class="test-section">
+        <h3>🔍 System Status</h3>
+        <button onclick="testHealth()">Test Health Endpoint</button>
+        <button onclick="testDatabaseStatus()">Test Database Status</button>
+        <div id="health-result"></div>
+        <div id="database-result"></div>
+
+        <div class="auth-info" style="margin-top: 15px">
+          <strong>⚠️ Important:</strong> If you see "table not found" errors,
+          you need to set up the database first. <br />📖 See
+          <code>DATABASE_SETUP.md</code> for instructions.
+        </div>
+      </div>
+
+      <!-- Authentication -->
+      <div class="test-section">
+        <h3>🔐 Authentication</h3>
+        <h4>Register User</h4>
+        <input type="text" id="reg-nom" placeholder="Name" value="Test User" />
+        <input
+          type="email"
+          id="reg-email"
+          placeholder="Email"
+          value="test@example.com"
+        />
+        <input
+          type="password"
+          id="reg-password"
+          placeholder="Password"
+          value="testpass123"
+        />
+        <input
+          type="text"
+          id="reg-numero"
+          placeholder="Phone Number"
+          value="1234567890"
+        />
+        <input
+          type="text"
+          id="reg-location"
+          placeholder="Location"
+          value="Test City"
+        />
+        <button onclick="testRegister()">Register</button>
+        <div id="register-result"></div>
+
+        <h4>Login User</h4>
+        <input
+          type="email"
+          id="login-email"
+          placeholder="Email"
+          value="test@example.com"
+        />
+        <input
+          type="password"
+          id="login-password"
+          placeholder="Password"
+          value="testpass123"
+        />
+        <button onclick="testLogin()">Login</button>
+        <div id="login-result"></div>
+
+        <button onclick="testProfile()" disabled id="profile-btn">
+          Get Profile
+        </button>
+        <div id="profile-result"></div>
+      </div>
+
+      <!-- Projects -->
+      <div class="test-section">
+        <h3>📋 Projects</h3>
+        <button onclick="testGetProjects()">Get All Projects</button>
+        <div id="projects-list-result"></div>
+
+        <h4>Create Project (requires auth)</h4>
+        <input
+          type="text"
+          id="proj-location"
+          placeholder="Location"
+          value="Test Project Location"
+        />
+        <textarea id="proj-description" placeholder="Description">
+This is a test project for helping the community</textarea
+        >
+        <input
+          type="text"
+          id="proj-materials"
+          placeholder="Materials Needed"
+          value="Hammers, nails, wood"
+        />
+        <input
+          type="number"
+          id="proj-duration"
+          placeholder="Estimated Duration (days)"
+          value="7"
+        />
+        <button onclick="testCreateProject()" disabled id="create-project-btn">
+          Create Project
+        </button>
+        <div id="create-project-result"></div>
+      </div>
+
+      <!-- Outils -->
+      <div class="test-section">
+        <h3>🔧 Tools (Outils)</h3>
+        <button onclick="testGetOutils()">Get All Tools</button>
+        <div id="outils-list-result"></div>
+
+        <h4>Create Tool (requires auth)</h4>
+        <input
+          type="text"
+          id="outil-nom"
+          placeholder="Tool Name"
+          value="Test Hammer"
+        />
+        <input
+          type="text"
+          id="outil-location"
+          placeholder="Location"
+          value="Test Tool Location"
+        />
+        <input
+          type="number"
+          id="outil-duree"
+          placeholder="Max Duration (days)"
+          value="3"
+        />
+        <button onclick="testCreateOutil()" disabled id="create-outil-btn">
+          Create Tool
+        </button>
+        <div id="create-outil-result"></div>
+      </div>
+
+      <!-- Materiel -->
+      <div class="test-section">
+        <h3>📦 Materials (Materiel)</h3>
+        <button onclick="testGetMateriel()">Get All Materials</button>
+        <div id="materiel-list-result"></div>
+
+        <h4>Create Material (requires auth)</h4>
+        <input
+          type="text"
+          id="materiel-nom"
+          placeholder="Material Name"
+          value="Test Cement"
+        />
+        <input
+          type="text"
+          id="materiel-location"
+          placeholder="Location"
+          value="Test Material Location"
+        />
+        <button
+          onclick="testCreateMateriel()"
+          disabled
+          id="create-materiel-btn"
+        >
+          Create Material
+        </button>
+        <div id="create-materiel-result"></div>
+      </div>
+
+      <!-- Transport -->
+      <div class="test-section">
+        <h3>🚗 Transport</h3>
+        <button onclick="testGetTransport()">Get All Transport</button>
+        <div id="transport-list-result"></div>
+
+        <h4>Create Transport (requires auth)</h4>
+        <input
+          type="text"
+          id="transport-nom"
+          placeholder="Vehicle Name"
+          value="Test Truck"
+        />
+        <input
+          type="text"
+          id="transport-location"
+          placeholder="Location"
+          value="Test Vehicle Location"
+        />
+        <input
+          type="text"
+          id="transport-numero"
+          placeholder="License/Number"
+          value="TEST-123"
+        />
+        <input
+          type="number"
+          id="transport-duree"
+          placeholder="Max Duration (days)"
+          value="2"
+        />
+        <button
+          onclick="testCreateTransport()"
+          disabled
+          id="create-transport-btn"
+        >
+          Create Transport
+        </button>
+        <div id="create-transport-result"></div>
+      </div>
+
+      <!-- Users -->
+      <div class="test-section">
+        <h3>👥 Users</h3>
+        <input type="number" id="user-id" placeholder="User ID" value="1" />
+        <button onclick="testGetUser()">Get User by ID</button>
+        <div id="user-result"></div>
+      </div>
+    </div>
+
+    <script>
+      const BASE_URL = "http://localhost:3001";
+      let authToken = localStorage.getItem("authToken");
+      let currentUserId = localStorage.getItem("currentUserId");
+
+      // Update UI based on auth status
+      function updateAuthStatus() {
+        const statusEl = document.getElementById("auth-status");
+        const authButtons = [
+          "profile-btn",
+          "create-project-btn",
+          "create-outil-btn",
+          "create-materiel-btn",
+          "create-transport-btn",
+        ];
+
+        if (authToken) {
+          statusEl.innerHTML = `<strong>Status:</strong> Authenticated (User ID: ${currentUserId})`;
+          authButtons.forEach(
+            (id) => (document.getElementById(id).disabled = false),
+          );
+        } else {
+          statusEl.innerHTML = "<strong>Status:</strong> Not authenticated";
+          authButtons.forEach(
+            (id) => (document.getElementById(id).disabled = true),
+          );
+        }
+      }
+
+      // Generic API call function
+      async function apiCall(
+        endpoint,
+        method = "GET",
+        data = null,
+        requiresAuth = false,
+      ) {
+        try {
+          const options = {
+            method,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          };
+
+          if (requiresAuth && authToken) {
+            options.headers["Authorization"] = `Bearer ${authToken}`;
+          }
+
+          if (data) {
+            options.body = JSON.stringify(data);
+          }
+
+          console.log(`Making ${method} request to ${BASE_URL}${endpoint}`);
+          const response = await fetch(`${BASE_URL}${endpoint}`, options);
+          const result = await response.json();
+
+          console.log(`Response:`, response.status, result);
+
+          if (!response.ok) {
+            return {
+              success: false,
+              error:
+                result.message ||
+                `HTTP ${response.status}: ${response.statusText}`,
+              details: result,
+            };
+          }
+
+          return { success: true, data: result };
+        } catch (error) {
+          console.error("API call failed:", error);
+          if (error.name === "TypeError" && error.message.includes("fetch")) {
+            return {
+              success: false,
+              error:
+                "❌ Cannot connect to server. Make sure the server is running on port 3001.",
+              details: error.message,
+            };
+          }
+          return {
+            success: false,
+            error: error.message,
+            details: error,
+          };
+        }
+      }
+
+      // Display result function
+      function displayResult(elementId, result) {
+        const el = document.getElementById(elementId);
+        if (result.success) {
+          el.innerHTML = `<div class="success">✅ Success!</div><div class="response">${JSON.stringify(result.data, null, 2)}</div>`;
+        } else {
+          let errorHtml = `<div class="error">❌ Error: ${result.error}</div>`;
+          if (result.details && typeof result.details === "object") {
+            errorHtml += `<div class="response">Details: ${JSON.stringify(result.details, null, 2)}</div>`;
+          }
+          el.innerHTML = errorHtml;
+        }
+      }
+
+      // Test functions
+      async function testHealth() {
+        const result = await apiCall("/api/health");
+        displayResult("health-result", result);
+      }
+
+      async function testDatabaseStatus() {
+        const el = document.getElementById("database-result");
+        el.innerHTML =
+          '<div style="color: #666;">Testing database connectivity...</div>';
+
+        // Test if we can fetch projects (this will show if database is set up)
+        const result = await apiCall("/api/projects");
+
+        if (result.success) {
+          el.innerHTML =
+            '<div class="success">✅ Database is properly set up and accessible!</div>';
+        } else if (result.error.includes("Could not find the table")) {
+          el.innerHTML = `
+                    <div class="error">
+                        ❌ Database tables not found! 
+                        <br><br>
+                        <strong>Next steps:</strong>
+                        <ol style="text-align: left; margin: 10px 0;">
+                            <li>Open your Supabase dashboard</li>
+                            <li>Go to SQL Editor</li>
+                            <li>Run the script from <code>setup-database.sql</code></li>
+                            <li>Come back and test again</li>
+                        </ol>
+                        <br>
+                        See <code>DATABASE_SETUP.md</code> for detailed instructions.
+                    </div>
+                `;
+        } else {
+          displayResult("database-result", result);
+        }
+      }
+
+      async function testRegister() {
+        const data = {
+          nom: document.getElementById("reg-nom").value,
+          email: document.getElementById("reg-email").value,
+          motDePasse: document.getElementById("reg-password").value,
+          numero: document.getElementById("reg-numero").value,
+          location: document.getElementById("reg-location").value,
+        };
+
+        const result = await apiCall("/api/auth/register", "POST", data);
+        displayResult("register-result", result);
+
+        if (result.success) {
+          authToken = result.data.token;
+          currentUserId = result.data.user.id;
+          localStorage.setItem("authToken", authToken);
+          localStorage.setItem("currentUserId", currentUserId);
+          updateAuthStatus();
+        }
+      }
+
+      async function testLogin() {
+        const data = {
+          email: document.getElementById("login-email").value,
+          motDePasse: document.getElementById("login-password").value,
+        };
+
+        const result = await apiCall("/api/auth/login", "POST", data);
+        displayResult("login-result", result);
+
+        if (result.success) {
+          authToken = result.data.token;
+          currentUserId = result.data.user.id;
+          localStorage.setItem("authToken", authToken);
+          localStorage.setItem("currentUserId", currentUserId);
+          updateAuthStatus();
+        }
+      }
+
+      async function testProfile() {
+        const result = await apiCall("/api/auth/me", "GET", null, true);
+        displayResult("profile-result", result);
+      }
+
+      async function testGetProjects() {
+        const result = await apiCall("/api/projects");
+        displayResult("projects-list-result", result);
+      }
+
+      async function testCreateProject() {
+        const data = {
+          location: document.getElementById("proj-location").value,
+          description: document.getElementById("proj-description").value,
+          materialsNeeded: document.getElementById("proj-materials").value,
+          estimatedDuration: parseInt(
+            document.getElementById("proj-duration").value,
+          ),
+        };
+
+        const result = await apiCall("/api/projects", "POST", data, true);
+        displayResult("create-project-result", result);
+      }
+
+      async function testGetOutils() {
+        const result = await apiCall("/api/outils");
+        displayResult("outils-list-result", result);
+      }
+
+      async function testCreateOutil() {
+        const data = {
+          nom: document.getElementById("outil-nom").value,
+          location: document.getElementById("outil-location").value,
+          dureeMax: parseInt(document.getElementById("outil-duree").value),
+        };
+
+        const result = await apiCall("/api/outils", "POST", data, true);
+        displayResult("create-outil-result", result);
+      }
+
+      async function testGetMateriel() {
+        const result = await apiCall("/api/materiel");
+        displayResult("materiel-list-result", result);
+      }
+
+      async function testCreateMateriel() {
+        const data = {
+          nom: document.getElementById("materiel-nom").value,
+          location: document.getElementById("materiel-location").value,
+        };
+
+        const result = await apiCall("/api/materiel", "POST", data, true);
+        displayResult("create-materiel-result", result);
+      }
+
+      async function testGetTransport() {
+        const result = await apiCall("/api/transport");
+        displayResult("transport-list-result", result);
+      }
+
+      async function testCreateTransport() {
+        const data = {
+          nom: document.getElementById("transport-nom").value,
+          location: document.getElementById("transport-location").value,
+          numero: document.getElementById("transport-numero").value,
+          dureeMax: parseInt(document.getElementById("transport-duree").value),
+        };
+
+        const result = await apiCall("/api/transport", "POST", data, true);
+        displayResult("create-transport-result", result);
+      }
+
+      async function testGetUser() {
+        const userId = document.getElementById("user-id").value;
+        const result = await apiCall(`/api/users/${userId}`);
+        displayResult("user-result", result);
+      }
+
+      // Initialize
+      updateAuthStatus();
+
+      // Generate random email on page load to avoid conflicts
+      document.getElementById("reg-email").value =
+        `test${Math.floor(Math.random() * 10000)}@example.com`;
+      document.getElementById("login-email").value =
+        document.getElementById("reg-email").value;
+    </script>
+  </body>
+</html>
