@@ -32,7 +32,7 @@ app.get("/api/health", (req, res) => {
 });
 
 // 404 handler for undefined routes
-app.use("*", (req, res) => {
+app.use((req, res) => {
   res.status(404).json({
     message: "Route not found",
     error: "ROUTE_NOT_FOUND",

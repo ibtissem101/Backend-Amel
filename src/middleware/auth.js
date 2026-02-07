@@ -30,6 +30,17 @@ const authenticateUser = async (req, res, next) => {
       });
     }
 
+    // Debugging: Log token issues (remove in production)
+    if (token === "undefined" || token === "null") {
+      console.error(
+        "Auth middleware: Token is strictly 'undefined' or 'null' string",
+      );
+      return res.status(401).json({
+        message: "Token is undefined or null",
+        error: "INVALID_TOKEN_VALUE",
+      });
+    }
+
     const {
       data: { user },
       error,
@@ -37,21 +48,33 @@ const authenticateUser = async (req, res, next) => {
 
     // Handle specific Supabase auth errors
     if (error) {
+      console.error(
+        "Supabase Auth Error:",
+        error.message,
+        "Token start:",
+        token.substring(0, 10),
+      ); // Log the error to see why it's invalid
+
       if (error.message?.includes("JWT expired")) {
         return res.status(401).json({
           message: "Token has expired",
           error: "EXPIRED_TOKEN",
         });
       }
-      if (error.message?.includes("invalid JWT")) {
+      if (
+        error.message?.includes("invalid JWT") ||
+        error.message?.includes("malformed")
+      ) {
         return res.status(401).json({
-          message: "Invalid token format",
+          message: "Invalid token format (Supabase rejected JWT)",
           error: "INVALID_TOKEN_FORMAT",
+          details: error.message,
         });
       }
       return res.status(401).json({
         message: "Invalid token",
         error: "INVALID_TOKEN",
+        details: error.message,
       });
     }
 

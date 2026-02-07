@@ -75,9 +75,19 @@ $registerData = @{
 
 $registerResponse = Test-Endpoint "Register User" "$BaseUrl/api/auth/register" "POST" $registerData
 if ($registerResponse) {
+    # Check for token in different possible locations
     $global:TestToken = $registerResponse.token
+    if (-not $global:TestToken -and $registerResponse.session) {
+        $global:TestToken = $registerResponse.session.access_token
+    }
+
     $global:TestUserId = $registerResponse.user.id
-    Write-Host "   Token: $($global:TestToken.Substring(0, 20))..." -ForegroundColor Gray
+    
+    if ($global:TestToken) {
+        Write-Host "   Token: $($global:TestToken.Substring(0, 20))..." -ForegroundColor Gray
+    } else {
+        Write-Host "   Warning: Token not found in response" -ForegroundColor Yellow
+    }
     Write-Host "   User ID: $global:TestUserId" -ForegroundColor Gray
 }
 

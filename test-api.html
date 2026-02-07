@@ -84,11 +84,71 @@
         border-radius: 4px;
         margin: 10px 0;
       }
+
+      /* Navbar & Dropdown Styles */
+      .navbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 10px;
+      }
+      .user-menu {
+        position: relative;
+        display: none; /* Hidden unless logged in */
+        cursor: pointer;
+      }
+      .user-avatar {
+        width: 40px;
+        height: 40px;
+        background-color: #007bff;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+      }
+      .dropdown-content {
+        display: none;
+        position: absolute;
+        right: 0;
+        top: 45px;
+        background-color: white;
+        min-width: 160px;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+        z-index: 10;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+      }
+      .dropdown-content a {
+        color: #333;
+        padding: 12px 16px;
+        text-decoration: none;
+        display: block;
+      }
+      .dropdown-content a:hover {
+        background-color: #f1f1f1;
+      }
+      .show {
+        display: block;
+      }
     </style>
   </head>
   <body>
     <div class="container">
-      <h1>🚀 Backend Gaza API Tester</h1>
+      <div class="navbar">
+        <h1>🚀 Backend Gaza API Tester</h1>
+
+        <div class="user-menu" id="user-menu" onclick="toggleDropdown()">
+          <div class="user-avatar" id="user-avatar">?</div>
+          <div id="user-dropdown" class="dropdown-content">
+            <a href="#" onclick="logout(event)">Logout</a>
+          </div>
+        </div>
+      </div>
+
       <div id="auth-status" class="auth-info">
         <strong>Status:</strong> Not authenticated
       </div>
@@ -246,6 +306,12 @@ This is a test project for helping the community</textarea
           placeholder="Location"
           value="Test Material Location"
         />
+        <input
+          type="file"
+          id="materiel-photo"
+          accept="image/*"
+          style="margin-bottom: 5px"
+        />
         <button
           onclick="testCreateMateriel()"
           disabled
@@ -314,6 +380,8 @@ This is a test project for helping the community</textarea
       // Update UI based on auth status
       function updateAuthStatus() {
         const statusEl = document.getElementById("auth-status");
+        const userMenu = document.getElementById("user-menu");
+
         const authButtons = [
           "profile-btn",
           "create-project-btn",
@@ -323,16 +391,70 @@ This is a test project for helping the community</textarea
         ];
 
         if (authToken) {
-          statusEl.innerHTML = `<strong>Status:</strong> Authenticated (User ID: ${currentUserId})`;
-          authButtons.forEach(
-            (id) => (document.getElementById(id).disabled = false),
-          );
+          statusEl.innerHTML = `<strong>Status:</strong> Authenticated`;
+          statusEl.className = "auth-info success";
+
+          // Show user menu
+          if (userMenu) {
+            userMenu.style.display = "flex";
+            // Try to set avatar letter if we have user info, else 'U'
+            // We don't store user name in localstorage currently, but we could fetch it.
+            document.getElementById("user-avatar").innerText = "👤";
+          }
+
+          authButtons.forEach((id) => {
+            const btn = document.getElementById(id);
+            if (btn) btn.disabled = false;
+          });
         } else {
           statusEl.innerHTML = "<strong>Status:</strong> Not authenticated";
-          authButtons.forEach(
-            (id) => (document.getElementById(id).disabled = true),
-          );
+          statusEl.className = "auth-info";
+
+          // Hide user menu
+          if (userMenu) userMenu.style.display = "none";
+
+          authButtons.forEach((id) => {
+            const btn = document.getElementById(id);
+            if (btn) btn.disabled = true;
+          });
         }
+      }
+
+      /* Navbar Dropdown & Logout Logic */
+      function toggleDropdown() {
+        document.getElementById("user-dropdown").classList.toggle("show");
+      }
+
+      // Close the dropdown if the user clicks outside of it
+      window.onclick = function (event) {
+        if (!event.target.closest(".user-menu")) {
+          var dropdowns = document.getElementsByClassName("dropdown-content");
+          for (var i = 0; i < dropdowns.length; i++) {
+            var openDropdown = dropdowns[i];
+            if (openDropdown.classList.contains("show")) {
+              openDropdown.classList.remove("show");
+            }
+          }
+        }
+      };
+
+      async function logout(event) {
+        if (event) event.preventDefault();
+        console.log("Logging out...");
+
+        if (authToken) {
+          const result = await apiCall("/api/auth/logout", "POST", {}, true);
+          console.log("Logout backend result:", result);
+        }
+
+        // Client-side cleanup
+        authToken = null;
+        currentUserId = null;
+        localStorage.removeItem("authToken");
+        localStorage.removeItem("currentUserId");
+
+        updateAuthStatus();
+        alert("Logged out successfully");
       }
 
       // Generic API call function
@@ -341,21 +463,24 @@ This is a test project for helping the community</textarea
         method = "GET",
         data = null,
         requiresAuth = false,
+        isFormData = false,
       ) {
         try {
           const options = {
             method,
-            headers: {
-              "Content-Type": "application/json",
-            },
+            headers: {},
           };
+
+          if (!isFormData) {
+            options.headers["Content-Type"] = "application/json";
+          }
 
           if (requiresAuth && authToken) {
             options.headers["Authorization"] = `Bearer ${authToken}`;
           }
 
           if (data) {
-            options.body = JSON.stringify(data);
+            options.body = isFormData ? data : JSON.stringify(data);
           }
 
           console.log(`Making ${method} request to ${BASE_URL}${endpoint}`);
@@ -400,9 +525,15 @@ This is a test project for helping the community</textarea
           el.innerHTML = `<div class="success">✅ Success!</div><div class="response">${JSON.stringify(result.data, null, 2)}</div>`;
         } else {
           let errorHtml = `<div class="error">❌ Error: ${result.error}</div>`;
-          if (result.details && typeof result.details === "object") {
-            errorHtml += `<div class="response">Details: ${JSON.stringify(result.details, null, 2)}</div>`;
+
+          if (result.details) {
+            const detailsText =
+              typeof result.details === "object"
+                ? JSON.stringify(result.details, null, 2)
+                : result.details;
+            errorHtml += `<div class="response">Details: ${detailsText}</div>`;
           }
+
           el.innerHTML = errorHtml;
         }
       }
@@ -458,7 +589,7 @@ This is a test project for helping the community</textarea
         displayResult("register-result", result);
 
         if (result.success) {
-          authToken = result.data.token;
+          authToken = result.data.token || result.data.session?.access_token;
           currentUserId = result.data.user.id;
           localStorage.setItem("authToken", authToken);
           localStorage.setItem("currentUserId", currentUserId);
@@ -476,7 +607,7 @@ This is a test project for helping the community</textarea
         displayResult("login-result", result);
 
         if (result.success) {
-          authToken = result.data.token;
+          authToken = result.data.token || result.data.session?.access_token;
           currentUserId = result.data.user.id;
           localStorage.setItem("authToken", authToken);
           localStorage.setItem("currentUserId", currentUserId);
@@ -530,12 +661,32 @@ This is a test project for helping the community</textarea
       }
 
       async function testCreateMateriel() {
-        const data = {
-          nom: document.getElementById("materiel-nom").value,
-          location: document.getElementById("materiel-location").value,
-        };
+        const nom = document.getElementById("materiel-nom").value;
+        const location = document.getElementById("materiel-location").value;
+        const photoInput = document.getElementById("materiel-photo");
 
-        const result = await apiCall("/api/materiel", "POST", data, true);
+        // Use FormData if a file is selected
+        let data;
+        let isFormData = false;
+
+        if (photoInput.files.length > 0) {
+          data = new FormData();
+          data.append("nom", nom);
+          data.append("location", location);
+          data.append("photo", photoInput.files[0]);
+          isFormData = true;
+        } else {
+          // Fallback to JSON if no file (legacy test)
+          data = { nom, location };
+        }
+
+        const result = await apiCall(
+          "/api/materiel",
+          "POST",
+          data,
+          true,
+          isFormData,
+        );
         displayResult("create-materiel-result", result);
       }
 

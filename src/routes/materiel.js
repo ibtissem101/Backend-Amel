@@ -29,6 +29,11 @@ router.post(
   authenticateUser,
   upload.single("photo"),
   async (req, res) => {
+    console.log("[Materiel POST] Received request");
+    console.log("[Materiel POST] Body:", req.body);
+    console.log("[Materiel POST] File:", req.file ? `Present (${req.file.originalname}, ${req.file.size} bytes)` : "Missing");
+    console.log("[Materiel POST] User:", req.user ? req.user.id : "Missing");
+
     try {
       const { nom, location } = req.body;
 
@@ -54,8 +59,9 @@ router.post(
         } catch (uploadError) {
           console.error("Photo upload error:", uploadError);
           return res.status(400).json({
-            message: "Photo upload failed",
+            message: `Photo upload failed: ${uploadError.message}`,
             error: "PHOTO_UPLOAD_FAILED",
+            details: uploadError.message,
           });
         }
       }

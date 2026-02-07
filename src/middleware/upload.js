@@ -3,31 +3,27 @@ const path = require("path");
 const fs = require("fs").promises;
 const { supabase, supabaseAdmin } = require("../config/supabase");
 
-// Configure Multer storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
-  filename: (req, file, cb) => {
-    // Generate unique filename using timestamp + original name
-    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}-${file.originalname}`;
-    cb(null, uniqueName);
-  },
-});
+// Configure Multer storage (Use MemoryStorage to avoid file permission issues on Windows)
+const storage = multer.memoryStorage();
 
 // File filter to accept only image files
 const fileFilter = (req, file, cb) => {
+  console.log(`[Upload Middleware] Processing file: ${file.originalname}, mimetype: ${file.mimetype}`);
+  
   const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
   const allowedExtensions = [".jpeg", ".jpg", ".png", ".webp"];
 
   const fileExtension = path.extname(file.originalname).toLowerCase();
+  console.log(`[Upload Middleware] Extension: ${fileExtension}`);
 
   if (
     allowedTypes.includes(file.mimetype) &&
     allowedExtensions.includes(fileExtension)
   ) {
+    console.log("[Upload Middleware] File accepted");
     cb(null, true);
   } else {
+    console.error(`[Upload Middleware] File rejected. Mime: ${file.mimetype}, Ext: ${fileExtension}`);
     cb(new Error("Only image files (JPEG, JPG, PNG, WEBP) are allowed"), false);
   }
 };
@@ -36,7 +32,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+    fileSize: 10 * 1024 * 1024, // 10MB limit
   },
   fileFilter: fileFilter,
 });
@@ -44,17 +40,46 @@ const upload = multer({
 // Function to upload file to Supabase Storage
 const uploadToSupabase = async (file, bucketName = "photos") => {
   try {
-    if (!file || !file.path) {
-      throw new Error("No file provided or invalid file object");
+    if (!file) {
+      throw new Error("No file provided");
     }
 
-    // Read the file from local storage
-    const fileBuffer = await fs.readFile(file.path);
+    let fileBuffer;
+    
+    // Support both memory storage (buffer) and disk storage (path)
+    if (file.buffer) {
+        // Memory storage
+        fileBuffer = file.buffer;
+        console.log(`[Upload Debug] Using Memory Storage. Buffer length: ${fileBuffer.length}`);
+    } else if (file.path) {
+        // Disk storage fallback
+        const absolutePath = path.resolve(file.path);
+        console.log(`[Upload Debug] Reading file from disk: ${absolutePath}`);
+        try {
+            await fs.access(absolutePath);
+            fileBuffer = await fs.readFile(absolutePath);
+        } catch (e) {
+             throw new Error(`Temporary file not found at ${absolutePath}`);
+        }
+    } else {
+        throw new Error("Invalid file object: No buffer or path found");
+    }
 
     // Generate a unique filename for Supabase storage
-    const fileName = `${Date.now()}-${file.originalname}`;
+    // Sanitize filename to avoid issues with spaces/special characters
+    const sanitizedOriginalName = file.originalname.replace(
+      /[^a-zA-Z0-9.-]/g,
+      "_",
+    );
+    const fileName = `${Date.now()}-${sanitizedOriginalName}`;
 
-    // Upload to Supabase Storage
+    console.log(
+      `[Upload Debug] Uploading file to Supabase bucket '${bucketName}': ${fileName}`,
+    );
+
+    // Upload to Supabase Storage - USING UPSERT: false because user might want to know if it conflicts, but typically unique name avoids it.
+    // NOTE: upsert: true was possibly causing Row Level Security issues if update is restricted but insert is allowed?
+    // Let's rely on insert (upsert:false)
     const { data, error } = await supabaseAdmin.storage
       .from(bucketName)
       .upload(fileName, fileBuffer, {
@@ -63,10 +88,23 @@ const uploadToSupabase = async (file, bucketName = "photos") => {
       });
 
     if (error) {
-      throw new Error(`Supabase upload failed: ${error.message}`);
+      console.error(
+        "[Upload Debug] Supabase Storage Error Object:",
+        JSON.stringify(error, null, 2),
+      );
+      const status = error.statusCode || error.status || 500;
+      // Provide actionable error messages
+      if (status == "403") {
+        throw new Error(
+          `Permission denied (403). Check RLS policies or Service Key config. Msg: ${error.message}`,
+        );
+      }
+      throw new Error(
+        `Supabase upload failed: ${error.message} (Status: ${status})`,
+      );
     }
 
-    // Get public URL
+    console.log("[Upload Debug] Upload success:", data);
     const { data: publicUrlData } = supabase.storage
       .from(bucketName)
       .getPublicUrl(fileName);
@@ -111,7 +149,7 @@ const handleUploadError = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     if (err.code === "LIMIT_FILE_SIZE") {
       return res.status(400).json({
-        message: "File too large. Maximum size is 5MB",
+        message: "File too large. Maximum size is 10MB",
         error: "FILE_TOO_LARGE",
       });
     }
